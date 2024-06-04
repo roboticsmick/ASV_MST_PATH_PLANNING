@@ -21,42 +21,61 @@ def create_convex_hull_polygon(boundary_points):
     hull = points.convex_hull
     return Polygon(hull)
 
-def generate_grids(polygon, grid_size):
-    min_x, min_y, max_x, max_y = polygon.bounds
+def generate_set1(min_x, min_y, max_x, max_y, grid_size):
     grids = []
-    for x in np.arange(min_x, max_x, grid_size):
-        for y in np.arange(min_y, max_y, grid_size):
-            corners = [
-                (x, y),
-                (x + grid_size, y),
-                (x, y + grid_size),
-                (x + grid_size, y + grid_size)
-            ]
-            if all(polygon.contains(Point(corner)) for corner in corners):
-                grids.append((x, y))
+    for x in np.arange(min_x, max_x, 2 * grid_size):
+        for y in np.arange(min_y, max_y, 2 * grid_size):
+            grids.append((x, y))
     return grids
 
-def visualize_boundary_and_grids(boundary, grid_size, grids):
+def generate_set2(set1, grid_size):
+    nodes = []
+    for (x, y) in set1:
+        nodes.append((x + grid_size, y + grid_size))
+    return nodes
+
+def generate_set3(set2, grid_size):
+    subdivided_centers = []
+    half_grid_size = grid_size / 2
+    for (x, y) in set2:
+        subdivided_centers.extend([
+            (x - half_grid_size, y - half_grid_size),
+            (x + half_grid_size, y - half_grid_size),
+            (x - half_grid_size, y + half_grid_size),
+            (x + half_grid_size, y + half_grid_size)
+        ])
+    return subdivided_centers
+
+def filter_inside_polygon(points, polygon):
+    return [point for point in points if polygon.contains(Point(point))]
+
+def visualize_sets(boundary, set1, set2, set3):
     fig, ax = plt.subplots(figsize=(10, 10))
 
     # Draw boundary
     x, y = boundary.exterior.xy
     ax.plot(x, y, 'k-', linewidth=2, label='Boundary')
 
-    # Draw grid vertices
-    for (x, y) in grids:
-        ax.scatter([x, x + grid_size, x, x + grid_size], [y, y, y + grid_size, y + grid_size], color='blue', s=10)
+    # Draw Set 1
+    if set1:
+        set1_x, set1_y = zip(*set1)
+        ax.scatter(set1_x, set1_y, color='blue', s=10, label='Set 1')
 
-    # Draw grid squares
-    for (x, y) in grids:
-        square = plt.Rectangle((x, y), grid_size, grid_size, fill=None, edgecolor='gray', linestyle='--', linewidth=0.5)
-        ax.add_patch(square)
+    # Draw Set 2
+    if set2:
+        set2_x, set2_y = zip(*set2)
+        ax.scatter(set2_x, set2_y, color='red', s=30, label='Set 2 (Nodes)')
+
+    # Draw Set 3
+    if set3:
+        set3_x, set3_y = zip(*set3)
+        ax.scatter(set3_x, set3_y, color='green', s=10, label='Set 3')
 
     # Adjust plot settings
     ax.autoscale()
     ax.set_aspect('equal')
     plt.legend()
-    plt.title("Boundary and Grid Vertices")
+    plt.title("Boundary and Sets")
     plt.show()
 
 # Generate a random boundary
@@ -66,8 +85,18 @@ boundary_points = create_random_polygon(boundary_centroid, 0.5, 0.2, num_boundar
 boundary = create_convex_hull_polygon(boundary_points)
 grid_size = 0.6
 
-# Generate grids
-grids = generate_grids(boundary, grid_size)
+# Get the bounds of the polygon
+min_x, min_y, max_x, max_y = boundary.bounds
 
-# Visualize the boundary and grids
-visualize_boundary_and_grids(boundary, grid_size, grids)
+# Generate sets
+set1 = generate_set1(min_x, min_y, max_x, max_y, grid_size)
+set2 = generate_set2(set1, grid_size)
+set3 = generate_set3(set2, grid_size)
+
+# Filter points inside polygon
+set1 = filter_inside_polygon(set1, boundary)
+set2 = filter_inside_polygon(set2, boundary)
+set3 = filter_inside_polygon(set3, boundary)
+
+# Visualize the sets
+visualize_sets(boundary, set1, set2, set3)
