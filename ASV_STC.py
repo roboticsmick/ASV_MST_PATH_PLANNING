@@ -49,7 +49,84 @@ def generate_set3(set2, grid_size):
 def filter_inside_polygon(points, polygon):
     return [point for point in points if polygon.contains(Point(point))]
 
-def visualize_sets(boundary, set1, set2, set3):
+def identify_set4(set2, set3, tolerance):
+    set4 = []
+    for (x, y) in set2:
+        traverse_nodes = [
+            (x - tolerance, y - tolerance),
+            (x + tolerance, y - tolerance),
+            (x - tolerance, y + tolerance),
+            (x + tolerance, y + tolerance)
+        ]
+        if all(any(np.isclose(trav[0], center[0], atol=tolerance) and np.isclose(trav[1], center[1], atol=tolerance) for center in set3) for trav in traverse_nodes):
+            set4.append((x, y))
+    return set4
+
+class Edge:
+    def __init__(self, _from, to, weight):
+        self.src = _from
+        self.dst = to
+        self.weight = weight
+
+    def __lt__(self, other):
+        return self.weight < other.weight
+
+class Graph:
+    def __init__(self, nodes):
+        self.nodes = nodes
+        self.edges = []
+        self.parent = {node: node for node in nodes}
+        self.rank = {node: 0 for node in nodes}
+
+    def add_edge(self, src, dst, weight):
+        self.edges.append(Edge(src, dst, weight))
+
+    def find(self, node):
+        if self.parent[node] != node:
+            self.parent[node] = self.find(self.parent[node])
+        return self.parent[node]
+
+    def union(self, x, y):
+        rootX = self.find(x)
+        rootY = self.find(y)
+        if rootX != rootY:
+            if self.rank[rootX] > self.rank[rootY]:
+                self.parent[rootY] = rootX
+            elif self.rank[rootX] < self.rank[rootY]:
+                self.parent[rootX] = rootY
+            else:
+                self.parent[rootY] = rootX
+                self.rank[rootX] += 1
+
+    def kruskal_mst(self):
+        self.edges = sorted(self.edges)
+        mst = []
+        for edge in self.edges:
+            root1 = self.find(edge.src)
+            root2 = self.find(edge.dst)
+
+            if root1 != root2:
+                mst.append(edge)
+                self.union(root1, root2)
+
+        return mst
+
+def generate_mst(set4):
+    node_indices = {node: idx for idx, node in enumerate(set4)}
+    graph = Graph(list(node_indices.values()))
+
+    for i, (x1, y1) in enumerate(set4):
+        for j, (x2, y2) in enumerate(set4):
+            if i != j:
+                weight = np.hypot(x2 - x1, y2 - y1)
+                graph.add_edge(node_indices[(x1, y1)], node_indices[(x2, y2)], weight)
+
+    mst_edges = graph.kruskal_mst()
+    mst = [(set4[edge.src], set4[edge.dst]) for edge in mst_edges]
+
+    return mst
+
+def visualize_sets_and_mst(boundary, set1, set2, set3, set4, mst):
     fig, ax = plt.subplots(figsize=(10, 10))
 
     # Draw boundary
@@ -59,23 +136,32 @@ def visualize_sets(boundary, set1, set2, set3):
     # Draw Set 1
     if set1:
         set1_x, set1_y = zip(*set1)
-        ax.scatter(set1_x, set1_y, color='blue', s=10, label='Set 1')
+        ax.scatter(set1_x, set1_y, color='blue', s=10, label='Grid')
 
     # Draw Set 2
     if set2:
         set2_x, set2_y = zip(*set2)
-        ax.scatter(set2_x, set2_y, color='red', s=30, label='Set 2 (Nodes)')
+        ax.scatter(set2_x, set2_y, color='red', s=30, label='Test MST Nodes')
 
     # Draw Set 3
     if set3:
         set3_x, set3_y = zip(*set3)
-        ax.scatter(set3_x, set3_y, color='green', s=10, label='Set 3')
+        ax.scatter(set3_x, set3_y, color='green', s=10, label='Path nodes')
+
+    # Draw Set 4
+    if set4:
+        set4_x, set4_y = zip(*set4)
+        ax.scatter(set4_x, set4_y, color='purple', s=40, label='MST nodes')
+
+    # Draw MST as orange lines
+    for (src, dst) in mst:
+        ax.plot([src[0], dst[0]], [src[1], dst[1]], color='orange', linewidth=2)
 
     # Adjust plot settings
     ax.autoscale()
     ax.set_aspect('equal')
     plt.legend()
-    plt.title("Boundary and Sets")
+    plt.title("Boundary, Sets, and MST")
     plt.show()
 
 # Generate a random boundary
@@ -84,6 +170,7 @@ num_boundary_points = 30
 boundary_points = create_random_polygon(boundary_centroid, 0.5, 0.2, num_boundary_points)
 boundary = create_convex_hull_polygon(boundary_points)
 grid_size = 0.6
+tolerance = 0.4  # Adjust tolerance to be larger for GPS accuracy
 
 # Get the bounds of the polygon
 min_x, min_y, max_x, max_y = boundary.bounds
@@ -98,5 +185,11 @@ set1 = filter_inside_polygon(set1, boundary)
 set2 = filter_inside_polygon(set2, boundary)
 set3 = filter_inside_polygon(set3, boundary)
 
-# Visualize the sets
-visualize_sets(boundary, set1, set2, set3)
+# Identify Set 4
+set4 = identify_set4(set2, set3, tolerance)
+
+# Generate MST
+mst = generate_mst(set4)
+
+# Visualize the sets and MST
+visualize_sets_and_mst(boundary, set1, set2, set3, set4, mst)
