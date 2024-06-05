@@ -1,6 +1,6 @@
 # ASV_MST_PATH_PLANNING
 
-![image](https://github.com/roboticsmick/ASV_STC_PATH_PLANNING/assets/70121687/485d6e49-4979-4bca-852c-78db3bad8020)
+![image](https://github.com/roboticsmick/ASV_STC_PATH_PLANNING/assets/70121687/5ead2ce3-8f7f-47b0-9e16-664fc1474ee3)
 
 # MST Grid Path Planning
 
