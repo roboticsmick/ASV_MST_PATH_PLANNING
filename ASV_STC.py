@@ -62,6 +62,19 @@ def identify_set4(set2, set3, tolerance):
             set4.append((x, y))
     return set4
 
+def identify_set5(set4, set3, grid_size):
+    half_grid_size = grid_size / 2
+    set5 = []
+    for (x, y) in set4:
+        surrounding_points = [
+            (x - half_grid_size, y - half_grid_size),
+            (x + half_grid_size, y - half_grid_size),
+            (x - half_grid_size, y + half_grid_size),
+            (x + half_grid_size, y + half_grid_size)
+        ]
+        set5.extend([point for point in surrounding_points if point in set3])
+    return list(set(set5))  # Remove duplicates
+
 class Edge:
     def __init__(self, _from, to, weight):
         self.src = _from
@@ -99,7 +112,7 @@ class Graph:
                 self.rank[rootX] += 1
 
     def kruskal_mst(self):
-        self.edges = sorted(self.edges)
+        self.edges = sorted(self.edges, key=lambda edge: (edge.weight, edge.src, edge.dst))
         mst = []
         for edge in self.edges:
             root1 = self.find(edge.src)
@@ -117,7 +130,7 @@ def generate_mst(set4):
 
     for i, (x1, y1) in enumerate(set4):
         for j, (x2, y2) in enumerate(set4):
-            if i != j:
+            if i != j and (x1 == x2 or y1 == y2):  # Only add horizontal and vertical edges
                 weight = np.hypot(x2 - x1, y2 - y1)
                 graph.add_edge(node_indices[(x1, y1)], node_indices[(x2, y2)], weight)
 
@@ -126,7 +139,7 @@ def generate_mst(set4):
 
     return mst
 
-def visualize_sets_and_mst(boundary, set1, set2, set3, set4, mst):
+def visualize_sets_and_mst(boundary, set1, set2, set3, set4, set5, mst):
     fig, ax = plt.subplots(figsize=(10, 10))
 
     # Draw boundary
@@ -141,17 +154,22 @@ def visualize_sets_and_mst(boundary, set1, set2, set3, set4, mst):
     # Draw Set 2
     if set2:
         set2_x, set2_y = zip(*set2)
-        ax.scatter(set2_x, set2_y, color='red', s=30, label='Test MST Nodes')
+        ax.scatter(set2_x, set2_y, color='red', s=30, label='Test nodes')
 
     # Draw Set 3
     if set3:
         set3_x, set3_y = zip(*set3)
-        ax.scatter(set3_x, set3_y, color='green', s=10, label='Path nodes')
+        ax.scatter(set3_x, set3_y, color='green', s=10, label='Test path points')
 
     # Draw Set 4
     if set4:
         set4_x, set4_y = zip(*set4)
-        ax.scatter(set4_x, set4_y, color='purple', s=40, label='MST nodes')
+        ax.scatter(set4_x, set4_y, color='purple', s=40, label='Valid nodes')
+
+    # Draw Set 5
+    if set5:
+        set5_x, set5_y = zip(*set5)
+        ax.scatter(set5_x, set5_y, color='orange', s=20, label='Valid Path Points')
 
     # Draw MST as orange lines
     for (src, dst) in mst:
@@ -188,8 +206,11 @@ set3 = filter_inside_polygon(set3, boundary)
 # Identify Set 4
 set4 = identify_set4(set2, set3, tolerance)
 
+# Identify Set 5
+set5 = identify_set5(set4, set3, grid_size)
+
 # Generate MST
 mst = generate_mst(set4)
 
 # Visualize the sets and MST
-visualize_sets_and_mst(boundary, set1, set2, set3, set4, mst)
+visualize_sets_and_mst(boundary, set1, set2, set3, set4, set5, mst)
